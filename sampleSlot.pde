@@ -18,7 +18,8 @@ class Sample {
   int fftSize = 1024;
   float maxAmplitude = 1.0;
   int numFrames;
-  int hopSize = fftSize / 4; // 75% overlap
+  int hopSize = fftSize / 8;
+  float epsilon = 1e-6; // Small value to prevent division by zero
 
   Sample(File file) {
     this.url = file.getPath();
@@ -149,7 +150,7 @@ class Sample {
     // Define a Hann window
     float[] window = new float[fftSize];
     for (int i = 0; i < fftSize; i++) {
-      window[i] = 0.5f * (1 - cos(TWO_PI * i / (fftSize - 1)));
+      window[i] = pow( sin( PI * i / fftSize ), 2 );
     }
 
     for (int frame = 0; frame < numFrames; frame++) {
@@ -231,7 +232,6 @@ class Sample {
 
         // Avoid division by zero with epsilon
         float totalAmplitude = rightAmplitude + leftAmplitude;
-        float epsilon = 1e-6;
 
         float panning = (rightAmplitude - leftAmplitude) / totalAmplitude;
         float avgAmp = totalAmplitude / 2;
@@ -250,7 +250,6 @@ class Sample {
   }
 
   void multiplyPanningRange(float from, float to, float timeA, float timeB, float multiplier) {
-    float epsilon = 1e-6; // Small value to prevent division by zero
 
     if (from>to) {
       float temp = to;
@@ -284,6 +283,70 @@ class Sample {
     }
   }
 
+  void shiftPanningRange(float from, float to, float timeA, float timeB, float shiftAmount) {
+
+    if (from>to) {
+      float temp = to;
+      to = from;
+      from = temp;
+    }
+    if (timeA>timeB) {
+      float temp = timeB;
+      timeB = timeA;
+      timeA = temp;
+    }
+
+    for (int frame = floor(timeA * leftChannelSpectrogram.length); frame < floor(timeB * leftChannelSpectrogram.length); frame++) {
+      for (int bin = 0; bin < leftChannelSpectrogram[frame].length; bin++) {
+        float leftAmp = leftChannelSpectrogram[frame][bin];
+        float rightAmp = rightChannelSpectrogram[frame][bin];
+        float totalAmp = leftAmp + rightAmp;
+
+        float panning = (rightAmp - leftAmp) / (totalAmp + epsilon);
+
+        if (!Float.isNaN(panning) && panning >= from && panning <= to) {
+          // Calculate new panning by shifting
+          leftChannelSpectrogram[frame][bin] = max(0, leftAmp - shiftAmount);
+          rightChannelSpectrogram[frame][bin] = max(0, rightAmp + shiftAmount);
+        }
+      }
+    }
+  }
+
+  void invertPanningRange(float from, float to, float timeA, float timeB) {
+
+    if (from>to) {
+      float temp = to;
+      to = from;
+      from = temp;
+    }
+    if (timeA>timeB) {
+      float temp = timeB;
+      timeB = timeA;
+      timeA = temp;
+    }
+
+    float midpoint = (from + to) / 2;
+
+    for (int frame = floor(timeA * leftChannelSpectrogram.length); frame < floor(timeB * leftChannelSpectrogram.length); frame++) {
+      for (int bin = 0; bin < leftChannelSpectrogram[frame].length; bin++) {
+        float leftAmp = leftChannelSpectrogram[frame][bin];
+        float rightAmp = rightChannelSpectrogram[frame][bin];
+        float totalAmp = leftAmp + rightAmp;
+
+        float panning = (rightAmp - leftAmp) / (totalAmp + epsilon);
+
+        if (!Float.isNaN(panning) && panning >= from && panning <= to) {
+          // Calculate new panning based on inversion around the midpoint
+          float invertedPanning = midpoint - (panning - midpoint);
+          // Calculate new left and right amplitudes based on inverted panning
+          leftChannelSpectrogram[frame][bin] = totalAmp * (1 - (invertedPanning + 1) / 2);
+          rightChannelSpectrogram[frame][bin] = totalAmp * ((invertedPanning + 1) / 2);
+        }
+      }
+    }
+  }
+
   void resynthesize() {
     int totalLength = (numFrames - 1) * hopSize + fftSize;
     nSampleProcessed = new double[2][totalLength];
@@ -300,7 +363,7 @@ class Sample {
     // Define a Hann window for synthesis
     float[] window = new float[fftSize];
     for (int i = 0; i < fftSize; i++) {
-      window[i] = 0.5f * (1 - cos(TWO_PI * i / (fftSize - 1)));
+      window[i] = pow( sin( PI * i / fftSize ), 2 );
     }
 
     for (int frame = 0; frame < numFrames; frame++) {
@@ -320,13 +383,15 @@ class Sample {
       fftL.inverse(freqRealL, freqImagL, bufferL);
       fftR.inverse(freqRealR, freqImagR, bufferR);
 
+      float increaseGainBy = 2.0;// I'm really not sure why I have to do this
+
       // Overlap-add with windowing
       int startIdx = frame * hopSize;
       for (int i = 0; i < fftSize; i++) {
         int pos = startIdx + i;
         if (pos < nSampleProcessed[0].length) {
-          nSampleProcessed[0][pos] += bufferL[i] * window[i];
-          nSampleProcessed[1][pos] += bufferR[i] * window[i];
+          nSampleProcessed[0][pos] += bufferL[i] * window[i] * increaseGainBy;
+          nSampleProcessed[1][pos] += bufferR[i] * window[i] * increaseGainBy;
           normalization[pos] += window[i]; // Track contributions
         }
       }

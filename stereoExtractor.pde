@@ -17,7 +17,7 @@ Sample sample;
 SDrop drop;
 
 void setup() {
-  size(1400, 500);
+  size(1600, 700);
   drop = new SDrop(this);
   frameRate(20);
 }
@@ -85,6 +85,15 @@ void keyPressed() {
   if (key == '-') {
     sample.multiplyPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound, 0.9);
   }
+  if (keyCode == 'L') { // Shift panning left in the selected range
+    sample.shiftPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound, -0.001);
+  }
+  if (keyCode == 'R') { // Shift panning right in the selected range
+    sample.shiftPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound, 0.001);
+  }
+  if (keyCode == 'I') { // Invert panning in the selected range
+    sample.invertPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound);
+  }  
   if (key == ENTER) {
     sample.resynthesize();
     sample.exportSample();
