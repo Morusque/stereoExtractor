@@ -48,7 +48,10 @@ void draw() {
   text("del : delete", 20, 60);
   text("+ : more gain", 20, 80);
   text("- : less gain", 20, 100);
-  text("enter : export", 20, 120);
+  text("L : rotate left", 20, 120);
+  text("R : rotate right", 20, 140);
+  text("I : invert", 20, 160);
+  text("enter : export", 20, 180);
 }
 
 color HSBtoRGB(float h, float s, float b) {
