@@ -51,7 +51,8 @@ void draw() {
   text("L : rotate left", 20, 120);
   text("R : rotate right", 20, 140);
   text("I : invert", 20, 160);
-  text("enter : export", 20, 180);
+  text("A : select all", 20, 180);
+  text("enter : export", 20, 200);
 }
 
 color HSBtoRGB(float h, float s, float b) {
@@ -82,10 +83,10 @@ void keyPressed() {
   if (keyCode == 127) {// suppr
     sample.multiplyPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound, 0);
   }
-  if (key == '+') {
+  if (key == '+') { // increase gain
     sample.multiplyPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound, 1.1);
   }
-  if (key == '-') {
+  if (key == '-') { // decrease gain
     sample.multiplyPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound, 0.9);
   }
   if (keyCode == 'L') { // Shift panning left in the selected range
@@ -96,7 +97,13 @@ void keyPressed() {
   }
   if (keyCode == 'I') { // Invert panning in the selected range
     sample.invertPanningRange(upperPannnigBound, lowerPannnigBound, timeABound, timeBBound);
-  }  
+  }
+  if (keyCode == 'A') { // select all
+    upperPannnigBound = -1;
+    lowerPannnigBound = 1;
+    timeABound = 0;
+    timeBBound = 1;
+  }
   if (key == ENTER) {
     sample.resynthesize();
     sample.exportSample();
